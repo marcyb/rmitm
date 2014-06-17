@@ -1,0 +1,85 @@
+#!/usr/bin/env python
+
+from libmproxy import flow
+import json, sys, getopt
+
+def parse_args(argv):
+	try:
+		opts, args = getopt.getopt(argv, "hqs", ["help", "request", "response"])
+	except getopt.GetoptError as err:
+		print "Error {0}".format(err.msg)
+		usage()
+
+	if len(args) == 0:
+		print "FILENAME not specified"
+		usage()
+	elif len(args) > 1:
+		print "Only one FILENAME can be specified"
+		usage()
+	else:
+		global f
+		f = args[0]
+
+	for opt, arg in opts:
+		global request, response
+		if opt in ('-q', '--request'):
+			response = False
+		elif opt in ('-s', '--response'):
+			request = False
+		elif opt in ('-h', '--help'):
+			usage()
+
+	if not (response or request):
+		response = True
+		request = True
+# END parse_args
+
+def usage():
+	print "--"
+	print "readFromFlow - read netlib flow from an mitmdump output file"
+	print ""
+	print "readFromFlow [OPTIONS] FILENAME"
+	print "-h, --help"
+	print "\tdisplay this help and exit"
+	print "-q, --request"
+	print "\tread requests only"
+	print "-s, --response"
+	print "\tread responses only"
+	print ""
+	print "Only one FILENAME can be specified. By default both requests and responses are read"
+	print "--"
+	sys.exit(2)
+# END usage
+
+def readFlowFile():
+	with open(f, "rb") as ff:
+		freader = flow.FlowReader(ff)
+		try:
+			for d in freader.stream():
+				print "START {0}".format(d)
+				print "{"
+				if request:
+					sys.stdout.write("\"request\" : ")
+					dump(d._get_state()['request'])
+				if response:
+					if request:
+						print ","
+					sys.stdout.write("\"response\" : ")
+					dump(d._get_state()['response'])
+				print "\n}"
+				print "END {0}".format(d)
+		except flow.FlowReadError, v:
+			print "FlowReadError reading from file {0}".format(f)
+# END readFlowFile
+
+def dump(content):
+	json.dump(content, sys.stdout, indent=4, ensure_ascii=False)
+# END dump
+
+if __name__ == '__main__':
+	global request, response
+	request = True
+	response = True
+	parse_args(sys.argv[1:])
+	readFlowFile()
+
