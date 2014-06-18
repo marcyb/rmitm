@@ -44,7 +44,7 @@ class Mitmdump
 	def start(options={})
 		merge(options)
 		stop if running?
-		p command if $DEBUG
+		p command if $MITM_DEBUG
 		pid = Process.spawn command 
 		Process.detach pid
 		wait_for_connection(true)
