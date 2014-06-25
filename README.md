@@ -107,7 +107,7 @@ Your own Python scripts can be added to the proxy start call:
 
 ```ruby
 m = Mitmdump.new
-m.start({'-s' => 'add_header.py'})
+m.start({'-s' => ['/path/to/add_header.py']})
 ```
 
 Or, before the proxy is started, can be added using `#add_script_to_startup`:
@@ -141,6 +141,16 @@ The following can be used to retrieve information about a running instance of `M
 * `#script_paths` - returns script path array passed in initialization
 
 Before calling `#start`, details of the scripts that will be passed to mitmdump on the command line can be retrieved using `#scripts`. Once mitmdump is running `#scripts` will return an empty array.
+
+```ruby
+m = Mitmdump.new({'-s' => ['/path/to/add_header.py', "\"./my_script.py -h 'test.com' -u 'user1'\""]})
+
+m.scripts # ==> ['/path/to/add_header.py', "\"./my_script.py -h 'test.com' -u 'user1'\""]
+
+m.start
+
+m.scripts # ==> []
+```
 
 ### Reading from an mitmdump output file
 
