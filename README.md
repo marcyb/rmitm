@@ -133,8 +133,6 @@ When adding a script only the filename (e.g. _myscript.py_) needs to be provided
 m.stop
 ```
 
-__Note:__ calling `#stop` on any instance of `Mitmdump` will actually stop __all__ running mitmdump processes.
-
 ##### Retrieving proxy details
 The following can be used to retrieve information about a running instance of `Mitmdump`:
 
