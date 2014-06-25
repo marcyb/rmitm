@@ -63,8 +63,8 @@ class Mitmdump
 		merge(options)
 		stop if running?
 		p command if $MITM_DEBUG
-		pid = Process.spawn command 
-		Process.detach pid
+		@pid = Process.spawn command 
+		Process.detach @pid
 		wait_for_connection(true)
 		reset_scripts
 	end
@@ -130,8 +130,8 @@ class Mitmdump
 			# a failure will just cause a hang
 			# TODO: Handle a failure more cleanly with user info
 			result = success ? 1 : 0
-			@pid = Process.spawn "MITM=#{result}; while [ $MITM -eq #{result} ]; do sleep 1; nc -z 127.0.0.1 #{port} >& /dev/null; MITM=$?; done; exit"
-			Process.wait @pid
+			pid = Process.spawn "MITM=#{result}; while [ $MITM -eq #{result} ]; do sleep 1; nc -z 127.0.0.1 #{port} >& /dev/null; MITM=$?; done; exit"
+			Process.wait pid
 		end
 
 		def running?
