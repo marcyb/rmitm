@@ -1,3 +1,21 @@
+=begin
+    RMITM - provides a Ruby interface to mitmdump
+    Copyright (C) 2014  Marc Bleeze (marcbleeze<at>gmail<dot>com)
+
+    This program is free software: you can redistribute it and/or modify
+    it under the terms of the GNU General Public License as published by
+    the Free Software Foundation, either version 3 of the License, or
+    (at your option) any later version.
+
+    This program is distributed in the hope that it will be useful,
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
+    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+    GNU General Public License for more details.
+
+    You should have received a copy of the GNU General Public License
+    along with this program.  If not, see <http://www.gnu.org/licenses/>.
+=end
+
 require 'sys/proctable'
 require 'fileutils'
 include Sys
@@ -51,10 +69,9 @@ class Mitmdump
 		reset_scripts
 	end
 
-	alias_method :restart, :start
-
 	def stop
-		ProcTable.ps { |p| Process.kill("SIGKILL", p.pid) if p.cmdline =~ /mitmdump/ }
+		# ProcTable.ps { |p| Process.kill("SIGKILL", p.pid) if p.cmdline =~ /Python .*\/mitmdump/ }
+		Process.kill("SIGKILL", @pid)
 		wait_for_connection(false)
 	end
 
@@ -69,7 +86,7 @@ class Mitmdump
 		def defaults
 			{
 				'-q' => nil,
-				'-w' => "dumps/selenium.dump",
+				'-w' => "dumps/mitm.dump",
 				'-s' => [] 
 			}
 		end
@@ -109,12 +126,16 @@ class Mitmdump
 		end
 
 		def wait_for_connection(success)
+			# This obviously assumes that mitmdump will eventually start
+			# a failure will just cause a hang
+			# TODO: Handle a failure more cleanly with user info
 			result = success ? 1 : 0
-			pid = Process.spawn "MITM=#{result}; while [ $MITM -eq #{result} ]; do sleep 1; nc -z 127.0.0.1 #{port} >& /dev/null; MITM=$?; done; exit"
-			Process.wait pid
+			@pid = Process.spawn "MITM=#{result}; while [ $MITM -eq #{result} ]; do sleep 1; nc -z 127.0.0.1 #{port} >& /dev/null; MITM=$?; done; exit"
+			Process.wait @pid
 		end
 
 		def running?
-			ProcTable.ps.find { |p| p.cmdline =~ /mitmdump/ }
+			# ProcTable.ps.find { |p| p.cmdline =~ /mitmdump/ }
+			ProcTable.ps.find { |p| p.pid == @pid }
 		end
 end

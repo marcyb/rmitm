@@ -1,7 +1,7 @@
-import sys, getopt
+import sys, getopt, re
 
 def response(context, flow):
-	if flow.request.path == path: #"/PlaylistService.svc?wsdl":
+	if path.search(flow.request.path) is not None:
 		flow.response.code = 404
 		flow.response.msg = "Not Found"
 		flow.response.content = "Oooops!!"
@@ -15,4 +15,4 @@ def start(context, argv):
 	for opt, arg in opts:
 		global path
 		if opt == '-p':
-			path = arg
+			path = re.compile(arg)
