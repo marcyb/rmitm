@@ -143,12 +143,17 @@ The following can be used to retrieve information about a running instance of `M
 Before calling `#start`, details of the scripts that will be passed to mitmdump on the command line can be retrieved using `#scripts`. Once mitmdump is running `#scripts` will return an empty array.
 
 ```ruby
-m = Mitmdump.new({'-s' => ['/path/to/add_header.py', "\"./my_script.py -h 'test.com' -u 'user1'\""]})
+m = Mitmdump.new.start({'-s' => ['/path/to/add_header.py', "\"./custom/my_script.py -h 'test.com' -u 'user1'\""]})
 
-m.scripts # ==> ['/path/to/add_header.py', "\"./my_script.py -h 'test.com' -u 'user1'\""]
+m.scripts # ==> []
+m.stop
 
+m = Mitmdump.new(['./custom'])
+m.add_script_to_startup('strip_encoding.py')
+m.add_script_to_startup('my_script.py', {'-h' => 'test.com', '-u' => 'user1'})
+
+m.scripts # ==> ['/path/to/RMITM/scripts/strip_encoding.py', "\"custom/my_script.py -h 'test.com' -u 'user1'\""]
 m.start
-
 m.scripts # ==> []
 ```
 
