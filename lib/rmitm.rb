@@ -19,4 +19,17 @@
 require 'mitmdump'
 require 'mitmdump_reader'
 require 'mitm_flow_array'
-require 'mitm_api'
+
+def load_proxies(glob)
+  $proxies = {}
+  Dir.glob(glob).each { |f| load f }
+end
+
+def proxy(name)
+  $proxies[name.to_sym] or
+    raise "Cannot find proxy '#{name}'"
+end
+
+def mitmdump(name, &block)
+  $proxies[name.to_sym] = Mitmdump.new(name, &block)
+end

@@ -16,126 +16,133 @@
     along with this program.  If not, see <http://www.gnu.org/licenses/>.
 =end
 
-require 'sys/proctable'
 require 'fileutils'
-include Sys
 
 class Mitmdump
 
-	def initialize(paths=[])
-		@args = defaults
-		@path_arr = [File.expand_path('../../bin/scripts', __FILE__)] #bundled scripts
-		set_script_lookup_paths(paths)
+	attr_reader :scripts, :params
+
+	def initialize(name, &block)
+		@name = name.to_sym
+		@port = 8080
+		@output = 'dumps/mitm.dump'
+		@scripts = []
+		@params = {}
+
+		instance_eval &block
+	end
+### DSL
+	def inherit(name)
+		intersect = @params.keys & proxy(name.to_sym).params.keys
+		intersect.empty? or
+			raise "Duplicate parameters #{intersect} when inheriting proxy '#{name.to_sym}'"
+		@scripts = @scripts | proxy(name.to_sym).scripts
+		@params.merge! proxy(name.to_sym).params
 	end
 
-	def add_script_to_startup(script, args = {})
-		# # only makes sense to add a script before proxy is started
-		return nil if running?
-		unless (cmd = get_script_path(script)).nil?
-			args.each do |o, v|
-				cmd << " " << o << " " << "'" << v << "'"
-			end
-			@args['-s'] << "\"#{cmd}\""
+	def port(port)
+		@port = port
+	end
+
+	def output(filename)
+		@output = filename
+	end
+
+	def blacklist(path)
+		script "#{script_path}blacklist.py", '-p' => path
+	end
+
+	def map_local(path, args={})
+		unless args[:file].nil?
+			script "#{script_path}map_local.py", '-p' => path, '-f' => args[:file]
+		else
+			raise ArgumentError, 'No file name provided for maplocal'
 		end
 	end
 
-	def reset_scripts
-		@args['-s'] = defaults['-s']
+	def replace(path, args={})
+		unless args[:swap].nil? | args[:with].nil?
+			script "#{script_path}replace.py", '-p' => path, '-x' => args[:swap], '-r' => args[:with]
+		else
+			raise ArgumentError, "Expecting arguments ':swap' and ':with' for replace"
+		end
 	end
 
-	def dumpfile
-		@args['-w']
+	def strip_encoding
+		script "#{script_path}strip_encoding.py"
 	end
 
-	def scripts
-		@args['-s']
+	def script(file, args={})
+		@scripts << [file, args]
 	end
 
-	def port
-		@args['-p'] || '8080'
-	end
-
-	def script_paths
-		@path_arr[1..-1]
-	end
-
-	def start(options={})
-		merge(options)
-		stop if running?
-		p command if $MITM_DEBUG
-		@pid = Process.spawn command 
-		Process.detach @pid
-		wait_for_connection(true)
-		reset_scripts
+	def param(name)
+		!@params.has_key?("%#{name.to_s}") and @params["%#{name.to_s}"] = '' or
+			raise "Parameter name '#{name}' already declared"
+	end	
+### END DSL
+	def start(args={})
+		check_params(args)
+		if port_available?
+			manage_dumpfile
+			@pid = Process.spawn command
+			Process.detach @pid
+			connection_successfull? or
+				raise "Failed to start mitmdump after 10 seconds\nCOMMAND LINE: <#{command}>"
+		else
+			raise "Cannot start mitmdump on port #{@port} - port unavailable"
+		end
 	end
 
 	def stop
-		# ProcTable.ps { |p| Process.kill("SIGKILL", p.pid) if p.cmdline =~ /Python .*\/mitmdump/ }
-		Process.kill("SIGKILL", @pid)
-		wait_for_connection(false)
+		system("kill -0 #{@pid} >& /dev/null") and (system("kill -9 #{@pid}") or
+			raise "Could not stop proxy '#{@name}' (pid: #{@pid})") if @pid
+	end
+
+	def dumpfile
+		@output
 	end
 
 	private
 
-		def set_script_lookup_paths(path_array)
-			@path_arr << path_array if path_array
-			@path_arr.flatten!
-			@path_arr.map! { |p| File.expand_path(p) }.uniq!		
-		end
-
-		def defaults
-			{
-				'-q' => nil,
-				'-w' => "dumps/mitm.dump",
-				'-s' => [] 
-			}
-		end
-
-		def get_script_path(file)
-			# careful of naming conflicts - the first one found will be used
-			path = @path_arr.find { |p| File.exists?("#{p}/#{file}") } and "#{path}/#{file}"
-		end
-
-		def merge(options = {})
-			maintain_dumps(options['-w'])
-			@args = @args.merge(options)
-		end
-
-		def maintain_dumps(file)
-			if File.exists?(dumpfile)
-				FileUtils.rm_f dumpfile
-				d = File.dirname(dumpfile)
-				FileUtils.remove_dir(d) if Dir.entries(d).size <= 2
-			end
-			d = File.dirname(file || defaults['-w'])
-			FileUtils.mkpath(d) unless File.directory?(d)
+		def port_available?
+			`nc -z 127.0.0.1 #{@port} >& /dev/null`
+			!$?.success?
 		end
 
 		def command
-			cmd = "mitmdump"
-			@args.each do |o, v|
-				unless o == '-s'
-					cmd << " #{o}#{" #{v}" if v}"
-				else
-					v.each do |s|
-						cmd << " -s" << " " << s
-					end
-				end
+			cmd = "mitmdump -q -p #{@port} -w #{@output}"
+			@scripts.each do | name, opts |
+				cmd << " -s \"#{name}"
+				opts.each { |k,v| cmd << " '#{k}' '#{interpolate(v)}'" } if opts
+				cmd << "\""
 			end
 			cmd
 		end
 
-		def wait_for_connection(success)
-			# This obviously assumes that mitmdump will eventually start
-			# a failure will just cause a hang
-			# TODO: Handle a failure more cleanly with user info
-			result = success ? 1 : 0
-			pid = Process.spawn "MITM=#{result}; while [ $MITM -eq #{result} ]; do sleep 1; nc -z 127.0.0.1 #{port} >& /dev/null; MITM=$?; done; exit"
-			Process.wait pid
+		def connection_successfull?(timeout=10)
+			timeout.times { port_available? and sleep 1 or return true }
+			false
 		end
 
-		def running?
-			# ProcTable.ps.find { |p| p.cmdline =~ /mitmdump/ }
-			ProcTable.ps.find { |p| p.pid == @pid }
+		def manage_dumpfile
+			FileUtils.rm_f @output if File.exists?(@output)
+			d = File.dirname(@output)
+			FileUtils.mkpath(d) unless File.directory?(d)
+		end
+
+		def script_path
+			"#{File.expand_path('../../bin/scripts', __FILE__)}/"
+		end
+
+		def check_params(args={})
+			@params.keys.each do |k|
+				@params[k] = args[k[1..-1]] if args.has_key? k[1..-1] or 
+					raise "Parameter '#{k}' not specified"
+			end
+		end
+
+		def interpolate(str)
+			str.gsub(/%[A-z]+/, @params)
 		end
 end
