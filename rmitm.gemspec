@@ -3,9 +3,9 @@
 
 Gem::Specification.new do |s|
   s.name          = 'rmitm'
-  s.version       = '0.0.1'
+  s.version       = '0.0.2'
   s.license       = 'GPL-3.0'
-  s.date          = '2014-06-13'
+  s.date          = '2014-06-30'
   s.summary       = "rmitm provides useful ruby classes and python scripts for mitmdump"
   s.description   = <<-EOF
   rmitm provides useful ruby classes and python scripts for using mitmdump
