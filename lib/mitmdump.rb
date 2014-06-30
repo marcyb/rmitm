@@ -143,6 +143,6 @@ class Mitmdump
 		end
 
 		def interpolate(str)
-			str.gsub(/%[A-z]+/, @params)
+			str.gsub(/%[a-zA-Z]+/, @params)
 		end
 end
