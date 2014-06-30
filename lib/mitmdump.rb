@@ -73,6 +73,12 @@ class Mitmdump
 	end
 
 	def script(file, args={})
+		args.each do |k,v|
+			unless (key = v[/%[a-zA-Z_]+/]).nil?
+			 	@params.has_key?(key) or
+			 		raise "Parameter '#{key}' referenced in proxy '#{@name}' but not declared"
+			end
+		end
 		@scripts << [file, args]
 	end
 
@@ -87,7 +93,7 @@ class Mitmdump
 			manage_dumpfile
 			@pid = Process.spawn command
 			Process.detach @pid
-			connection_successfull? or
+			connection_successful? or
 				raise "Failed to start mitmdump after 10 seconds\nCOMMAND LINE: <#{command}>"
 		else
 			raise "Cannot start mitmdump on port #{@port} - port unavailable"
@@ -120,7 +126,7 @@ class Mitmdump
 			cmd
 		end
 
-		def connection_successfull?(timeout=10)
+		def connection_successful?(timeout=10)
 			timeout.times { port_available? and sleep 1 or return true }
 			false
 		end
@@ -143,6 +149,6 @@ class Mitmdump
 		end
 
 		def interpolate(str)
-			str.gsub(/%[a-zA-Z]+/, @params)
+			str.gsub(/%[a-zA-Z_]+/, @params)
 		end
 end

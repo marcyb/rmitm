@@ -13,14 +13,14 @@ __Note:__ Some corporate firewalls may block access to [http://mitmproxy.org][0]
 ### Compatibility
 __RMITM__ is developed and used on OSX. Although there is no obvious reason why __RMITM__ wouldn't work on Linux, this is untested. 
 
-For Windows, there *are* specific reasons why some features of __RMITM__ would not work as is. Fixing these would be fairly straightforward, should you need to, but up to now running on Windows hasn't been a requirement. 
+For Windows, there _are_ specific reasons why some features of __RMITM__ would not work as is. Fixing these would be fairly straightforward, should you need to, but up to now running on Windows hasn't been a requirement. 
 
 ### Install from source
 
 __RMITM__ is not currently published on any public gem repositories. The gem can however be built and installed locally using the gemspec file.
 
 1. `gem build rmitm.gemspec`
-2. `gem install rmitm-0.0.1.gem`
+2. `gem install rmitm-0.0.2.gem`
 
 ## Motivation
 __RMITM__ came about from the need to automate a pack of manual functional web tests in Ruby. The manual tests used a proxy application to modify specific server responses, but the proxy application only had a limited API that enabled turning functionality on or off, not configure responses on a per test basis.
@@ -46,32 +46,73 @@ This worked fine until the requirements changed and some of the requests needed 
     You should have received a copy of the GNU General Public License
     along with this program.  If not, see http://www.gnu.org/licenses/.
 
-## Usage
+# Usage
 
-### Mitmdump
+## Mitmdump
 
-##### Initialization
-A new instance of `Mitmdump` can be initialized with an optional path array specifying where custom mitmdump scripts are located:
-
-```ruby
-m = Mitmdump.new(['.', './scripts', '~/python/mitmdump/scripts'])
-```
-
-##### Starting proxy
-Once initialized the proxy can be started by calling `#start`	with an optional hash of arguments. The arguments are passed on directly to the mitmdump command line - for details of valid options see the [mitmdump documentation][6] and/or run `mitmdump --help` from a terminal.
+### Defining proxies
+`Mitmdump` configurations are defined using a DSL:
 
 ```ruby
-Mitmdump.new.start({'-p' => '8888', '-w' => 'my.dump'})
+mitmdump :p1 do
+  port 8888
+  output 'my.dump'
+end
+=> #<Mitmdump:0x007fc321a479f0 @name=:p1, @port=8888, @output="my.dump", @scripts=[], @params={}>
 ```
 
-By default the proxy starts on port 8080 and outputs traffic flows to *./dumps/mitm.dump* (any required directories will be created, subject to permissions).
+By default the proxy starts on port 8080 and outputs traffic flows to _./dumps/mitm.dump_ (any required directories will be created, subject to permissions).
+
+```ruby
+mitmdump :default do
+end
+=> #<Mitmdump:0x007fc321a71610 @name=:default, @port=8080, @output="dumps/mitm.dump", @scripts=[], @params={}>
+```
 
 Since `Mitmdump` is intended for use with test automation the proxy will __always start in quiet mode__.
 
-#### Scripting
+#### Loading proxies from file
+At runtime the named configurations can be loaded from file(s) using a [glob pattern][10]. For example, if the configuration above is defined in _./features/support/mitm/config.mitm_:
+
+```ruby
+load_proxies('./features/support/mitm/*.mitm')
+```
+Loading the proxies creates a hash of proxy configs that can be retrieved by name using `#proxy`:
+
+```ruby
+{:p1=>
+  #<Mitmdump:0x007fc321a479f0
+   @name=:p1,
+   @output="my.dump",
+   @params={},
+   @port=8888,
+   @scripts=[]>,
+ :default=>
+  #<Mitmdump:0x007fc321a71610
+   @name=:default,
+   @output="dumps/mitm.dump",
+   @params={},
+   @port=8080,
+   @scripts=[]>}
+
+proxy('p1')
+=> #<Mitmdump:0x007fc321a479f0 @name=:p1, @port=8888, @output="my.dump", @scripts=[], @params={}>
+```
+
+### Starting proxy
+```ruby
+proxy('p1').start
+```
+
+### Stopping proxy
+```ruby
+proxy('p1').stop
+```
+
+### Scripting
 Altering specific requests or responses in your application traffic flow is achieved using [mitmproxy's scripting API][7]. 
 
-##### __RMITM__ bundled scripts
+#### __RMITM__ bundled scripts
 __RMITM__ includes Python scripts for some common functionality.
 
 Currently these are:
@@ -81,101 +122,163 @@ Currently these are:
 * __Replace__ - for any request with a path matching a regular expression, any text in the response content matching a second regular expression will be replaced with the provided string
 * __Strip Encoding__ - removes the *Accept-Encoding* header from the request headers so that traffic is not compressed
 
-##### Script API
+### DSL
+#### Already demonstrated above
+`port` - specifies the port for the proxy to listen on, defaults to 8080 if not provided
 
-For each bundled script there is an API method to add the script to the proxy session.
+`output` - specifies the file for mitmdump to write traffic flows to, defaults to _dumps/mitm.dump_
 
+#### Bundled scripts
 ```ruby
-m.blacklist('\/collect\?')
+mitmdump :example do
+  blacklist '\/collect\?'
 
-m.map_local('\/', 'local_homepage.html')
+  map_local '\/',
+    :with => 'local_homepage.html'
 
-m.replace(
-	'\/application_config\.js',
-	'name=\"someParam\" value=\"\d+\"',
-	"name=\\\"someParam\\\" value=\\\"#{new_value}\\\""
-)
+  replace '\/application_config\.js',
+  	:swap => 'name=\"timeout\" value=\"\d+\"',
+  	:with => "name=\\\"timeout\\\" value=\\\"10\\\""
 
-m.strip_encoding
+  strip_encoding
+end
 ```
 
 Note that, since strings will be passed to mitmdump via the command line, special attention needs to be paid to escaping quotes.
 
-##### Custom scripts
+#### Custom scripts
 
-Your own Python scripts can be added to the proxy start call:
-
-```ruby
-m = Mitmdump.new
-m.start({'-s' => ['/path/to/add_header.py']})
-```
-
-Or, before the proxy is started, can be added using `#add_script_to_startup`:
+Your own custom Python scripts can also be added:
 
 ```ruby
-m.add_script_to_startup('add_header.py')
-m.start
+mitmdump :custom do
+  script '/custom/add_header.py'
+end
 ```
 
 Non-anonymous script arguments can be passed in a hash: 
 
 ```ruby
-m.add_script_to_startup('myscript.py', {'-h' => host, '-u' => user})
+mitmdump :custom_with_args do
+  script 'lib/python/myscript.py', '-h' => 'host.com', '-u' => 'user1'
+end
 ```
 
-Attempting to add a script once mitmdump has already started will do nothing.
-
-##### Script naming and selection
-When adding a script only the filename (e.g. _myscript.py_) needs to be provided. A corresponding file will be searched for in the bundled scripts and then each of the [script locations specified in the path array][8] in turn. The first script with a matching filename will be used.
-
-##### Stopping proxy
-```ruby
-m.stop
-```
-
-##### Retrieving proxy details
-The following can be used to retrieve information about a running instance of `Mitmdump`:
-
-* `#dumpfile` - returns the location of the mitmdump flow dump
-* `#port` - returns the port mitmdump is listening on
-* `#script_paths` - returns script path array passed in initialization
-
-Before calling `#start`, details of the scripts that will be passed to mitmdump on the command line can be retrieved using `#scripts`. Once mitmdump is running `#scripts` will return an empty array.
+#### Parameterisation
+Parameters, denoted by `%`, can be included in script argument strings, however for the replacement to succeed at runtime, they must also be declared using `param`:
 
 ```ruby
-m = Mitmdump.new.start({'-s' => ['/path/to/add_header.py', "\"./custom/my_script.py -h 'test.com' -u 'user1'\""]})
+mitmdump :parameter_example do
+  param 'new_value'
+  replace '\/application_config\.js',
+    :swap => 'name=\"timeout\" value=\"\d+\"',
+    :with => "name=\\\"timeout\\\" value=\\\"%new_value\\\""
 
-m.scripts # ==> []
-m.stop
-
-m = Mitmdump.new(['./custom'])
-m.add_script_to_startup('strip_encoding.py')
-m.add_script_to_startup('my_script.py', {'-h' => 'test.com', '-u' => 'user1'})
-
-m.scripts # ==> ['/path/to/RMITM/scripts/strip_encoding.py', "\"custom/my_script.py -h 'test.com' -u 'user1'\""]
-m.start
-m.scripts # ==> []
+  param 'user'
+  script 'lib/python/myscript.py', '-h' => 'host.com', '-u' => '%user'
+end
 ```
 
-### Reading from an mitmdump output file
+Replacement values are specified in the `#start` call:
 
-#### MitmdumpReader
+```ruby
+proxy('parameter_example').start 'new_value' => '20', 'user' => 'user2'
+```
+
+#### Config inheritance
+It is possible to add scripts and parameters to a proxy configuration by 'inheriting' from previously defined configs:
+
+```ruby
+mitmdump :default do
+  strip_encoding
+end
+=> #<Mitmdump:0x007fc321abed48 @name=:default, @port=8080, @output="dumps/mitm.dump", @scripts=[[".../strip_encoding.py", {}]], @params={}>
+
+mitmdump :extend do
+  inherit :default
+  param 'new_value'
+  replace '\/application_config\.js',
+    :swap => 'name=\"timeout\" value=\"\d+\"',
+    :with => "name=\\\"timeout\\\" value=\\\"%new_value\\\""
+end
+=> #<Mitmdump:0x007fc321b9c6c0 @name=:extend, @port=8080, @output="dumps/mitm.dump", @scripts=[[".../strip_encoding.py", {}], [".../replace.py", {"-p"=>"\\/application_config\\.js", "-x"=>"name=\\\"timeout\\\" value=\\\"\\d+\\\"", "-r"=>"name=\\\"timeout\\\" value=\\\"%new_value\\\""}]], @params={"%new_value"=>""}>
+
+mitmdump :extend2 do
+  inherit :extend
+  blacklist '\/'
+end
+=> #<Mitmdump:0x007fc321bcdc70 @name=:extend2, @port=8080, @output="dumps/mitm.dump", @scripts=[[".../strip_encoding.py", {}], [".../replace.py", {"-p"=>"\\/application_config\\.js", "-x"=>"name=\\\"timeout\\\" value=\\\"\\d+\\\"", "-r"=>"name=\\\"timeout\\\" value=\\\"%new_value\\\""}], [".../blacklist.py", {"-p"=>"\\/"}]], @params={"%new_value"=>""}>
+```
+
+### Other public methods
+
+`#dumpfile` - returns the location of the mitmdump flow dump
+
+### Example Cucumber integration
+Define your proxy configurations in _./features/support/mitm/config.mitm_:
+```ruby
+mitmdump :default do
+  strip_encoding 
+  # by inheriting :default in all other proxies, compression can be turned off globally
+end
+.
+.
+.
+```
+
+Load your proxy config definitions in _./features/support/env.rb_:
+```ruby
+load_proxies('./features/support/mitm/config.mitm')
+```
+
+Define a step definition similar to the following:
+```ruby
+When(/^I use (\S*)\s*proxy( with \s*(.+\s*=\s*[^,\s]+),?)?$/) do |p, _, args| 
+  h = args ? Hash[*args.gsub(/\s+|"|'/, '').split(/,|=/)] : {}
+  p = 'default' if p == ''
+  $mitm = proxy p.to_sym
+  $mitm.start(h)
+end
+```
+
+Example steps matching this step definition:
+```cucumber
+When I use proxy
+
+When I use custom proxy
+
+When I use custom proxy with new_value = 20
+
+When I use custom proxy with new_value = 20, user = 'user2', host = "my.host.com"
+```
+
+Finally, stop the proxy at the end of the scenario in the __After__ hook (conventionally specified in _./features/support/hooks.rb_):
+
+```ruby
+After do |scenario|
+  $mitm.stop if $mitm
+end
+```
+
+## Reading from an mitmdump output file
+
+### MitmdumpReader
 `MitmdumpReader` enables reading from an mitmdump output file to JavaScript Object Notation (JSON).
 
 ```ruby
-reader = MitmdumpReader.new(m.dumpfile)
-reader.get_flows_from_file		# returns an array of all flows in file in JSON format
-reader.get_requests_from_file		# returns an array of all requests in file in JSON format
-reader.get_responses_from_file		# returns an array of all responses in file in JSON format
+reader = MitmdumpReader.new(proxy('default').dumpfile)
+reader.get_flows_from_file    # returns an array of all flows in file in JSON format
+reader.get_requests_from_file    # returns an array of all requests in file in JSON format
+reader.get_responses_from_file    # returns an array of all responses in file in JSON format
 ```
 
-If you need to run validations or queries on the contents of the dumpfile it is generally more practical to use `MitmFlowArray` instead of `MitmdumpReader`. `MitmdumpReader` is just a Ruby integration layer for a Python program that parses the mitmdump output file format into JSON.
+If you need to run validations or queries on the contents of the dumpfile it is generally more practical to use `MitmFlowArray` instead of `MitmdumpReader`. `MitmdumpReader` is just a Ruby integration layer for a Python program that parses the __mitmdump__ output file format into JSON.
 
 ### MitmFlowArray
 `MitmFlowArray` provides utility methods for filtering the recorded flows by one or more conditions and returning specific values from the JSON. [JSONPath][9] is used to achieve this.
 
 ```ruby
-f = MitmFlowArray.from_file(m.dumpfile)
+f = MitmFlowArray.from_file(proxy('p1').dumpfile)
 hosts = f.values_by_jpath('$..request.host')
 response_codes = f.values_by_jpath('$..response.code')
 
@@ -210,3 +313,4 @@ response_codes = f.values_by_jpath('$..response.code', false)
 [7]: http://mitmproxy.org/doc/scripting/inlinescripts.html
 [8]: #initialization
 [9]: http://goessner.net/articles/JsonPath/
+[10]: http://en.wikipedia.org/wiki/Glob_(programming)

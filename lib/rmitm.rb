@@ -21,7 +21,6 @@ require 'mitmdump_reader'
 require 'mitm_flow_array'
 
 def load_proxies(glob)
-  $proxies = {}
   Dir.glob(glob).each { |f| load f }
 end
 
@@ -31,5 +30,6 @@ def proxy(name)
 end
 
 def mitmdump(name, &block)
+  $proxies ||= {}
   $proxies[name.to_sym] = Mitmdump.new(name, &block)
 end
