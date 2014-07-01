@@ -5,6 +5,10 @@ __RMITM__ provides a ruby interface to mitmdump - the command line version of [m
 
 ## Installation
 
+```ruby
+gem install rmitm
+```
+
 ### Prerequisites
 (Obviously) [mitmproxy][1] must be installed.
 
@@ -14,13 +18,6 @@ __Note:__ Some corporate firewalls may block access to [http://mitmproxy.org][0]
 __RMITM__ is developed and used on OSX. Although there is no obvious reason why __RMITM__ wouldn't work on Linux, this is untested. 
 
 For Windows, there _are_ specific reasons why some features of __RMITM__ would not work as is. Fixing these would be fairly straightforward, should you need to, but up to now running on Windows hasn't been a requirement. 
-
-### Install from source
-
-__RMITM__ is not currently published on any public gem repositories. The gem can however be built and installed locally using the gemspec file.
-
-1. `gem build rmitm.gemspec`
-2. `gem install rmitm-0.0.2.gem`
 
 ## Motivation
 __RMITM__ came about from the need to automate a pack of manual functional web tests in Ruby. The manual tests used a proxy application to modify specific server responses, but the proxy application only had a limited API that enabled turning functionality on or off, not configure responses on a per test basis.
