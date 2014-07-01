@@ -1,11 +1,9 @@
-# -*- encoding: utf-8 -*-
-# $:.push File.expand_path("../lib", __FILE__)
 
 Gem::Specification.new do |s|
   s.name          = 'rmitm'
-  s.version       = '0.0.2'
+  s.version       = '0.0.3'
   s.license       = 'GPL-3.0'
-  s.date          = '2014-06-30'
+  s.date          = '2014-07-01'
   s.summary       = "rmitm provides a DSL and useful ruby classes and python scripts for mitmdump"
   s.description   = <<-EOF
   rmitm provides a DSL and useful ruby classes and python scripts for using mitmdump
@@ -17,7 +15,6 @@ EOF
   s.require_paths = ["lib"]
   s.homepage = 'https://github.com/marcyb/rmitm'
 
-  s.add_runtime_dependency "sys-proctable"
   s.add_runtime_dependency "jsonpath"
   s.add_runtime_dependency "json"
 
