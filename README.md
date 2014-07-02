@@ -10,7 +10,7 @@ gem install rmitm
 ```
 
 ### Prerequisites
-(Obviously) [mitmproxy][1] must be installed.
+(Obviously) [mitmproxy][1] must be installed - version 0.10.1.
 
 __Note:__ Some corporate firewalls may block access to [http://mitmproxy.org][0]. In this case, the source of the site is available via [github][2] - specifically the [installation page][3].
 
