@@ -6,7 +6,7 @@ from libmproxy.flow import Response
 # 	if path.search(flow.request.path) is not None:
 # 		flow.response.code = 404
 # 		flow.response.msg = "Not Found"
-#		flow.response.content = "Blacklisted"
+# 		flow.response.content = "Blacklisted"
 
 def request(context, flow):
 	if path.search(flow.request.path) is not None:

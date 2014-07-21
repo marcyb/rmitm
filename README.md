@@ -230,7 +230,7 @@ load_proxies('./features/support/mitm/config.mitm')
 
 Define a step definition similar to the following:
 ```ruby
-When(/^I use (\S*)\s*proxy( with \s*(.+\s*=\s*[^,\s]+),?)?$/) do |p, _, args| 
+When(/^I use (\S*)\s*proxy(?: with \s*(.+\s*=\s*[^,\s]+),?)?$/) do |p, args| 
   h = args ? Hash[*args.gsub(/\s+|"|'/, '').split(/,|=/)] : {}
   p = 'default' if p == ''
   $mitm = proxy p.to_sym
