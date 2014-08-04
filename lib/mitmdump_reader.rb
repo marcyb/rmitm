@@ -39,7 +39,7 @@ class MitmdumpReader
 			cmd = "#{File.expand_path('../../bin', __FILE__)}/readFromFlow #{options << ' '}#{@filename}"
 			pp cmd if $DEBUG
 			Open3.popen3(cmd) do |_, o, e, w|
-				@stdout = o.read.encode!('ISO-8859-1', 'UTF-8', :invalid => :replace, :undef => :replace, :replace => "")
+				@stdout = o.read #.encode!('ISO-8859-1', 'UTF-8', :invalid => :replace, :undef => :replace, :replace => "")
 				@stderr = e.read
 				@stderr == "" ? parse : error
 			end

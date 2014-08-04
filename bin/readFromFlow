@@ -73,7 +73,7 @@ def readFlowFile():
 # END readFlowFile
 
 def dump(content):
-	json.dump(content, sys.stdout, indent=4, ensure_ascii=False)
+	json.dump(content, sys.stdout, indent=4, ensure_ascii=True, encoding='ISO-8859-1')
 # END dump
 
 if __name__ == '__main__':
