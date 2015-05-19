@@ -131,7 +131,7 @@ mitmdump :example do
   blacklist '\/collect\?'
 
   map_local '\/',
-    :with => 'local_homepage.html'
+    :file => 'local_homepage.html'
 
   replace '\/application_config\.js',
   	:swap => 'name=\"timeout\" value=\"\d+\"',
