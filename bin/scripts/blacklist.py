@@ -1,6 +1,6 @@
 import sys, getopt, re
 from netlib.odict import ODictCaseless
-from libmproxy.flow import Response
+from libmproxy.protocol.http import HTTPResponse
 
 # def response(context, flow):
 # 	if path.search(flow.request.path) is not None:
@@ -10,13 +10,11 @@ from libmproxy.flow import Response
 
 def request(context, flow):
 	if path.search(flow.request.path) is not None:
-			resp = Response(
-				flow.request,
+			resp = HTTPResponse(
 				[1,1], 404, "Not Found",
 				ODictCaseless([["Content-Type","text/html"],["Server","Apache/2.4.9 (Unix)"]]),
-				"Blacklisted",
-				None)
-			flow.request.reply(resp)
+				"Blacklisted")
+			flow.reply(resp)
 
 def start(context, argv):
 	try:

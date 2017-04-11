@@ -60,12 +60,12 @@ def readFlowFile():
 				print "{"
 				if request:
 					sys.stdout.write("\"request\" : ")
-					dump(d._get_state()['request'])
+					dump(d.get_state()['request'])
 				if response:
 					if request:
 						print ","
 					sys.stdout.write("\"response\" : ")
-					dump(d._get_state()['response'])
+					dump(d.get_state()['response'])
 				print "\n}"
 				print "END {0}".format(d)
 		except flow.FlowReadError, v:
