@@ -101,10 +101,8 @@ class Mitmdump
 	end
 
 	def stop
-		@pid = `ps --ppid #{@pid} -o pid h`.to_i if RbConfig::CONFIG['host_os'] == 'linux'
-
-		system("kill -0 #{@pid} &> /dev/null") and (system("kill #{@pid} 2> /dev/null") or
-			raise "Could not stop proxy '#{@name}' (pid: #{@pid})") if @pid
+		pid = `ps --ppid #{@pid} -o pid h`
+		system("kill #{pid}")
 	end
 
 	def dumpfile
@@ -115,7 +113,7 @@ class Mitmdump
 
 		def port_available?
 			# `nc -z 127.0.0.1 #{@port} >& /dev/null`
-			system("nc -z 127.0.0.1 #{@port}#{' &> /dev/null' unless RbConfig::CONFIG['host_os'] == 'linux'}")
+			system("nc -z 127.0.0.1 #{@port}")
 			!$?.success?
 		end
 
