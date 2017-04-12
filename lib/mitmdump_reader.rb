@@ -61,7 +61,7 @@ class MitmdumpReader
 		end
 
 		def flows
-			@stdout.scan(/START <libmproxy.flow.Flow instance at [^{]+(.*?)\nEND <libmproxy.flow.Flow instance at /m).map { |e| e[0] }
+			@stdout.scan(/START <HTTPFlow[^{]+(.*?)\nEND <HTTPFlow/m).map { |e| e[0] }
 		end
 	
 		alias_method :get_flows_from_file, :read_from_flow_dump
