@@ -113,9 +113,20 @@ class Mitmdump
 	private
 
 	def port_available?
-		# `nc -z 127.0.0.1 #{@port} >& /dev/null`
-		system("nc -z 127.0.0.1 #{@port}#{' &> /dev/null' unless RbConfig::CONFIG['host_os'] == 'linux'}")
-		!$?.success?
+		begin
+			Timeout::timeout(1) do
+				begin
+					s = TCPSocket.new('127.0.01', @port)
+					s.close
+					return true
+				rescue Errno::ECONNREFUSED, Errno::EHOSTUNREACH
+					return false
+				end
+			end
+		rescue Timeout::Error
+		end
+
+		return false
 	end
 
 	def command
