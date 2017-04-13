@@ -35,7 +35,7 @@ class Mitmdump
 	def inherit(name)
 		intersect = @params.keys & proxy(name.to_sym).params.keys
 		intersect.empty? or
-			raise "Duplicate parameters #{intersect} when inheriting proxy '#{name.to_sym}'"
+				raise "Duplicate parameters #{intersect} when inheriting proxy '#{name.to_sym}'"
 		@scripts = @scripts | proxy(name.to_sym).scripts
 		@params.merge! proxy(name.to_sym).params
 	end
@@ -75,8 +75,8 @@ class Mitmdump
 	def script(file, args={})
 		args.each do |k,v|
 			unless (key = v[/%[a-zA-Z_]+/]).nil?
-			 	@params.has_key?(key) or
-			 		raise "Parameter '#{key}' referenced in proxy '#{@name}' but not declared"
+				@params.has_key?(key) or
+						raise "Parameter '#{key}' referenced in proxy '#{@name}' but not declared"
 			end
 		end
 		@scripts << [file, args]
@@ -84,8 +84,8 @@ class Mitmdump
 
 	def param(name)
 		!@params.has_key?("%#{name.to_s}") and @params["%#{name.to_s}"] = '' or
-			raise "Parameter name '#{name}' already declared"
-	end	
+				raise "Parameter name '#{name}' already declared"
+	end
 ### END DSL
 	def start(args={})
 		check_params(args)
@@ -94,7 +94,7 @@ class Mitmdump
 			@pid = Process.spawn command
 			Process.detach @pid
 			connection_successful? or
-				raise "Failed to start mitmdump after 10 seconds\nCOMMAND LINE: <#{command}>"
+					raise "Failed to start mitmdump after 10 seconds\nCOMMAND LINE: <#{command}>"
 		else
 			raise "Cannot start mitmdump on port #{@port} - port unavailable"
 		end
@@ -111,45 +111,45 @@ class Mitmdump
 
 	private
 
-		def port_available?
-			# `nc -z 127.0.0.1 #{@port} >& /dev/null`
-			system("nc -z 127.0.0.1 #{@port}")
-			!$?.success?
-		end
+	def port_available?
+		# `nc -z 127.0.0.1 #{@port} >& /dev/null`
+		system("nc -z 127.0.0.1 #{@port}#{' &> /dev/null' unless RbConfig::CONFIG['host_os'] == 'linux'}")
+		!$?.success?
+	end
 
-		def command
-			cmd = "mitmdump -q -p #{@port} -w #{@output}"
-			@scripts.each do | name, opts |
-				cmd << " -s \"#{name}"
-				opts.each { |k,v| cmd << " '#{k}' '#{interpolate(v)}'" } if opts
-				cmd << "\""
-			end
-			cmd
+	def command
+		cmd = "mitmdump -q -p #{@port} -w #{@output}"
+		@scripts.each do | name, opts |
+			cmd << " -s \"#{name}"
+			opts.each { |k,v| cmd << " '#{k}' '#{interpolate(v)}'" } if opts
+			cmd << "\""
 		end
+		cmd
+	end
 
-		def connection_successful?(timeout=10)
-			timeout.times { port_available? and sleep 1 or return true }
-			false
-		end
+	def connection_successful?(timeout=10)
+		timeout.times { port_available? and sleep 1 or return true }
+		false
+	end
 
-		def manage_dumpfile
-			FileUtils.rm_f @output if File.exists?(@output)
-			d = File.dirname(@output)
-			FileUtils.mkpath(d) unless File.directory?(d)
-		end
+	def manage_dumpfile
+		FileUtils.rm_f @output if File.exists?(@output)
+		d = File.dirname(@output)
+		FileUtils.mkpath(d) unless File.directory?(d)
+	end
 
-		def script_path
-			"#{File.expand_path('../../bin/scripts', __FILE__)}/"
-		end
+	def script_path
+		"#{File.expand_path('../../bin/scripts', __FILE__)}/"
+	end
 
-		def check_params(args={})
-			@params.keys.each do |k|
-				@params[k] = args[k[1..-1]] if args.has_key? k[1..-1] or 
+	def check_params(args={})
+		@params.keys.each do |k|
+			@params[k] = args[k[1..-1]] if args.has_key? k[1..-1] or
 					raise "Parameter '#{k}' not specified"
-			end
 		end
+	end
 
-		def interpolate(str)
-			str.gsub(/%[a-zA-Z_]+/, @params)
-		end
+	def interpolate(str)
+		str.gsub(/%[a-zA-Z_]+/, @params)
+	end
 end
